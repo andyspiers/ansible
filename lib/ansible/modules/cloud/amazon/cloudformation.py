@@ -107,6 +107,20 @@ options:
     - enable or disable termination protection on the stack. Only works with botocore >= 1.7.18.
     type: bool
     version_added: "2.5"
+  capabilities:
+    description:
+    - Capabilities allow stacks to create and modify IAM resources (which may include adding users or roles) or use CloudFormation macros.
+    - You may specify one or more from the list.
+    - >
+        Managing the following resources with CloudFormation require that one or both of 'CAPABILITY_IAM' and 'CAPABILITY_NAMED_IAM'
+        are specified: AWS::IAM::AccessKey, AWS::IAM::Group, AWS::IAM::InstanceProfile, AWS::IAM::Policy, AWS::IAM::Role,
+        AWS::IAM::User, AWS::IAM::UserToGroupAddition
+    - To use CloudFormation macros you must set 'CAPABILITY_AUTO_EXPAND'.
+    default: ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM']
+    choices:
+    - 'CAPABILITY_IAM'
+    - 'CAPABILITY_NAMED_IAM'
+    - 'CAPABILITY_AUTO_EXPAND'
   template_body:
     description:
       - Template body. Use this to pass in the actual body of the Cloudformation template.
@@ -599,6 +613,9 @@ def main():
         role_arn=dict(default=None, required=False),
         tags=dict(default=None, type='dict'),
         termination_protection=dict(default=None, type='bool'),
+        capabilities=dict(type='list',
+            choices=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
+            default=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM']),
         events_limit=dict(default=200, type='int'),
         backoff_retries=dict(type='int', default=10, required=False),
         backoff_delay=dict(type='int', default=3, required=False),
@@ -616,7 +633,6 @@ def main():
 
     # collect the parameters that are passed to boto3. Keeps us from having so many scalars floating around.
     stack_params = {
-        'Capabilities': ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
         'ClientRequestToken': to_native(uuid.uuid4()),
     }
     state = module.params['state']
@@ -629,6 +645,8 @@ def main():
         stack_params['TemplateBody'] = module.params['template_body']
     elif module.params['template_url'] is not None:
         stack_params['TemplateURL'] = module.params['template_url']
+
+    stack_params['Capabilities'] = module.params['capabilities']
 
     if module.params.get('notification_arns'):
         stack_params['NotificationARNs'] = module.params['notification_arns'].split(',')
